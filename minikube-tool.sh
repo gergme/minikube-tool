@@ -4,7 +4,6 @@
 # Set USE_DEFAULT=0 to use LATEST STABLE
 # Set USE_DEFAULT=1 to use MINIKUBE DEFAULT
 USE_DEFAULT=0
-DEFAULT_DOCKERENV=1
 DEFAULT_KUBERNETES="v1.10.0"
 STABLE_KUBERNETES="v1.11.0"
 DATE_STAMP=`date +%Y%m%d-%H%M-%S`
@@ -43,6 +42,7 @@ kubever_warn(){
 	printf "╒═════════════════════════════════════════════════════════════════╕\n"	
 	printf "│ WARNING!  Minikube will use kubernetes ${STABLE_KUBERNETES} which is not the │\n"
 	printf "│           default of ${DEFAULT_KUBERNETES}                                    │\n"
+	printf "│           Use --default-kube to override this behavior          │\n"	
 	printf "╘═════════════════════════════════════════════════════════════════╛\n"
 	else
 	printf "╒═════════════════════════════════════════════════════════════════╕\n"
@@ -84,19 +84,16 @@ restore_minikube(){
 	perl -pi -e "s|__MACHINE__STORAGE_PATH__|$MACHINE_STORAGE_PATH|g" ${WORKPATH}/.${MACHINE_NAME}/machines/$MACHINE_NAME/config.json
 }
 
-unset_dockerenv(){
-	minikube docker-env --unset
-}
-
-set_dockerenv(){
-
-}
 version(){
 	printf "Version 0.0.11\n"
 }
 
 install_ver(){
 	[ ${USE_DEFAULT} -eq 0 ] && KUBE_VERSION=${STABLE_KUBERNETES} || KUBE_VERSION=${DEFAULT_KUBERNETES}
+}
+
+cleanup(){
+	rm -rf $TMPPATH/$MACHINE_NAME*
 }
 
 run_program(){
@@ -107,6 +104,11 @@ run_program(){
 	minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000
 	eval $(minikube docker-env)
 	docker run -d -p 5000:5000 --restart=always --name registry registry:2
+	printf "╒═════════════════════════════════════════════════════════════════╕\n"
+	printf "│ NOTICE!  Your docker environment is currently set to LOCAL!     │\n"
+	printf "│           Use \"eval \$(minikube docker-env)\" for MINIKUBE     │\n"
+	printf "│           Use \"eval \$(minikube docker-env --unset)\" for LOCAL│\n"
+	printf "╘═════════════════════════════════════════════════════════════════╛\n"
 	minikube status
 }
 
@@ -123,8 +125,6 @@ while test $# -gt 0; do
 					echo "-b, --backup		Backup the minikube virtual machine"
 					echo "-d, --default-kube	Use the minikube default kubernetes version of ${DEFAULT_KUBERNETES}"
 					echo "-r, --restore [file]	Restore a minikube virtual machine"
-					echo "-s, --set 		Set the minikube docker environment"
-					echo "-u, --unset		Unset the minikube docker environment"
 					echo "-v, --version		Show version"
 					echo "run			Run the script"
 					exit 0
@@ -146,21 +146,13 @@ while test $# -gt 0; do
 					shift
 					exit 0
 					;;
-			-s|--set)
-					set_dockerenv
-					shift
-					;;
-			-u|--unset)
-					unset_dockerenv
-					shift
-					;;
 			-v|--version)
 					version
 					;;
 			run)
 					install_ver
 					run_program
-					[ ${DEFAULT_DOCKERENV} -ne 0 ] && set_dockerenv || unset_dockerenv
+					cleanup
 					RAN=1
 					shift
 					;;
