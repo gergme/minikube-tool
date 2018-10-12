@@ -58,8 +58,6 @@ backup_minikube(){
 	# copy to /tmp and strip out $MACHINE_STORAGE_PATH
 	mkdir -p ${WORKPATH}/
 	cp -R ${MACHINE_STORAGE_PATH}/ ${WORKPATH}/
-	#/tmp/minikube-20181009-1534-02/.minikube/machines/minikube
-	perl -pi -e "s|$MACHINE_STORAGE_PATH|__MACHINE__STORAGE_PATH__|g" ${WORKPATH}/.${MACHINE_NAME}/machines/$MACHINE_NAME/config.json
 	tar cf - ${WORKPATH} -P | pv -s $(du -sb ${WORKPATH}/ | awk '{print $1}') | gzip > ${WORKFILE}
 	rm -rf ${WORKPATH}/
 }
@@ -81,7 +79,6 @@ restore_minikube(){
 	printf "Restoring ${RESTORE_FILE} to ${MACHINE_STORAGE_PATH}/machines/${MACHINE_NAME}\n"
 	mkdir -p ${HOME}/.minikube/machines/${MACHINE_NAME}/
 	tar -zvxf ${RESTORE_FILE} -C ${HOME}/ --strip-components=2
-	perl -pi -e "s|__MACHINE__STORAGE_PATH__|$MACHINE_STORAGE_PATH|g" ${WORKPATH}/.${MACHINE_NAME}/machines/$MACHINE_NAME/config.json
 }
 
 version(){
@@ -97,6 +94,7 @@ cleanup(){
 }
 
 run_program(){
+	tput clear 
 	cleanmk_warn
 	minikube delete
 	rm -rfv ~/.minikube/cache
