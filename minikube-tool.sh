@@ -17,7 +17,7 @@ WORKFILE="${MACHINE_NAME}-${DATE_STAMP}.tgz"
 # Functions
 ###
 cleanmk_warn(){
-	TIMETOWIPE=15
+	TIMETOWIPE=5
 	printf "╒═══════════════════════════════════════════════════════════════════════════════╕\n"
 	printf "│ WARNING!  This script will PERMANENTLY WIPE your minikube machine and cache!! │\n"
 	printf "│           Use --backup to backup your minikube docker machine                 │\n"
@@ -28,6 +28,11 @@ cleanmk_warn(){
 	sleep 1
 	: $((TIMETOWIPE--))
 	done
+}
+
+_error(){
+	printf "An error occured.\n"
+	exit 250
 }
 
 minikube_warn(){
@@ -53,17 +58,21 @@ fi
 }
 
 backup_minikube(){
-	[[ ! -d ${MACHINE_STORAGE_PATH}/ ]] && printf "${MACHINE_STORAGE_PATH} doesn't exist ... skipping!\n" && exit 250 || \
-
-	# copy to /tmp and strip out $MACHINE_STORAGE_PATH
+	printf "Preparing to backup ${MACHINE_STORAGE_PATH}...\n"
+	[[ ! -d ${MACHINE_STORAGE_PATH}/ ]] && _error || \
 	mkdir -p ${WORKPATH}/
 	cp -R ${MACHINE_STORAGE_PATH}/ ${WORKPATH}/
+	_VMS=$(vboxmanage list vms | grep minikube | cut -d " " -f1)
+	_VMS="${_VMS%\"}"; VMS="${_VMS#\"}"
+	[[ -z ${VMS} ]] && _error || \
+	minikube stop
+	vboxmanage export ${VMS} -o ${WORKPATH}/${VMS}.ova
 	tar cf - ${WORKPATH} -P | pv -s $(du -sb ${WORKPATH}/ | awk '{print $1}') | gzip > ${WORKFILE}
 	rm -rf ${WORKPATH}/
 }
 
 restore_minikube(){
-	TIMETOWIPE=15
+	TIMETOWIPE=5
 	printf "╒═══════════════════════════════════════════════════════════════════════╕\n"
 	printf "│ WARNING!  This option will OVERWRITE your current minikube machine !! │\n"
 	while [ ${TIMETOWIPE} -gt -1 ]; do
@@ -74,15 +83,21 @@ restore_minikube(){
 	: $((TIMETOWIPE--))
 	done
 
-	minikube stop $MACHINE_NAME
+	#[[ -d ${MACHINE_STORAGE_PATH} ]] && minikube delete ${MACHINE_NAME} 
 	rm -rf ${MACHINE_STORAGE_PATH}
 	printf "Restoring ${RESTORE_FILE} to ${MACHINE_STORAGE_PATH}/machines/${MACHINE_NAME}\n"
-	mkdir -p ${HOME}/.minikube/machines/${MACHINE_NAME}/
-	tar -zvxf ${RESTORE_FILE} -C ${HOME}/ --strip-components=2
+	mkdir -p ${MACHINE_STORAGE_PATH}/machines/${MACHINE_NAME}/
+	pv ${RESTORE_FILE} | tar xzf - -C ${HOME} 2>/dev/null
+	RESTORED_VERSION=`jq ".KubernetesConfig.KubernetesVersion" ${MACHINE_STORAGE_PATH}/profiles/${MACHINE_NAME}/config.json`
+	printf "Setting version to ${RESTORED_VERSION}\n"
+	[[ ${RESTORED_VERSION} == "${STABLE_KUBERNETES}" ]] && KUBE_VERSION=${STABLE_KUBERNETES} || KUBE_VERSION=${DEFAULT_KUBERNETES}
+	printf "Your minikube installation has been restored from ${RESTORE_FILE} using ${RESTORED_VERSION}.\n"
 }
 
 version(){
-	printf "Version 0.0.11\n"
+	printf "Minikube-Tool\n"
+	printf "Version 0.1.09\n"
+	printf "https://github.com/gergme/minikube-tool\n"
 }
 
 install_ver(){
@@ -91,22 +106,31 @@ install_ver(){
 
 cleanup(){
 	rm -rf $TMPPATH/$MACHINE_NAME*
+	rm -rf ${MACHINE_STORAGE_PATH}/mkt.run
+}
+
+destroy(){
+	cleanmk_warn
+	minikube delete
+	rm -rf ~/.minikube/cache
+	rm -rf ${MACHINE_STORAGE_PATH}/mkt.run
 }
 
 run_program(){
 	tput clear 
-	cleanmk_warn
-	minikube delete
-	rm -rfv ~/.minikube/cache
+	version	
+	[[ ${NO_WIPE} -ne 1 ]] && destroy || \
 	kubever_warn
-	minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000
+	#[[ -z ${KUBE_VERSION} ]] && KUBE_VERSION=`jq ".KubernetesConfig.KubernetesVersion" ${MACHINE_STORAGE_PATH/profiles/${MACHINE_NAME}/config.json`
+	[[ -f ${MACHINE_STORAGE_PATH}/mkt.run ]] && $(${MACHINE_STORAGE_PATH}/mkt.run) || minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000
 	eval $(minikube docker-env)
 	docker run -d -p 5000:5000 --restart=always --name registry registry:2
 	printf "╒═════════════════════════════════════════════════════════════════╕\n"
 	printf "│ NOTICE!  Your docker environment is currently set to LOCAL!     │\n"
-	printf "│           Use \"eval \$(minikube docker-env)\" for MINIKUBE     │\n"
-	printf "│           Use \"eval \$(minikube docker-env --unset)\" for LOCAL│\n"
+	printf "│           Use \"eval \$(minikube docker-env)\" for MINIKUBE        │\n"
+	printf "│           Use \"eval \$(minikube docker-env --unset)\" for LOCAL   │\n"
 	printf "╘═════════════════════════════════════════════════════════════════╛\n"
+	printf "minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000" > ${MACHINE_STORAGE_PATH}/mkt.run
 	minikube status
 }
 
@@ -117,20 +141,22 @@ while test $# -gt 0; do
 		case "$1" in
 			-h|--help)
 					version
-					echo "syntax:  ${0} [options] [run]"
+					echo "syntax:  ${0} [-b] [-d] [-n] [-R]"
 					echo "options:"
-					echo "-h, --help		Its what youre looking at!"
-					echo "-b, --backup		Backup the minikube virtual machine"
-					echo "-d, --default-kube	Use the minikube default kubernetes version of ${DEFAULT_KUBERNETES}"
-					echo "-r, --restore [file]	Restore a minikube virtual machine"
-					echo "-v, --version		Show version"
-					echo "run			Run the script"
+					echo "-h, --help			Its what youre looking at!"
+					echo "-b, --backup			Backup the minikube virtual machine"
+					echo "-d, --default-kube		Use the minikube default kubernetes version of ${DEFAULT_KUBERNETES}"
+					echo "-n, --no-wipe			Start minikube without wiping minikube installation"
+					echo "-r, --restore [file]		Restore a minikube virtual machine"
+					echo "-R, --run			Run the script"
+					echo "-v, --version			Show version"
 					exit 0
 					;;
+
             -b|--backup)
 					backup_minikube
+                    RAN=1
                     shift
-                    exit 0
                     ;;
 
 			-d|--default-kube)
@@ -138,31 +164,40 @@ while test $# -gt 0; do
 					kubever_warn
 					shift
 					;;
+
+			-n|--no-wipe)
+					NO_WIPE=1
+					shift
+					;;
+
 			-r|--restore)
 					RESTORE_FILE=${2}
 					restore_minikube
-					shift
-					exit 0
+					RAN=1
 					;;
+
 			-v|--version)
 					version
+					RAN=1
 					;;
-			run)
+
+			-R|--run)
 					install_ver
 					run_program
 					cleanup
 					RAN=1
 					shift
 					;;
+
 			*)
 					printf "Unknown option!\n"
 					RAN=1
 					$0 --help
-					break
 					exit 0
 					;;
 		esac
 done
+
 ###
 # Exit
 ###
@@ -170,3 +205,4 @@ done
 printf "Here, I'll help you out...\n"
 $0 --help
 exit 0
+printf "Hello?"
