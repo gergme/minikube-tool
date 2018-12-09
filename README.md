@@ -1,30 +1,6 @@
 ## Minikube Tool
+
 `!WARNING!` This project is not complete and currently does not fully function, use at your own risk!
-
-```
-options:
--h, --help				Its what youre looking at!
--b, --backup			Backup the minikube virtual machine (not functional)
--d, --default-kube		Use the minikube default kubernetes version of v1.10.0
--r, --restore [file]	Restore a minikube virtual machine (!causes minikube corruption!)
--v, --version			Show version
---run					Run the script
-```
-
-### Project Description
-
-This project aims to be a Minikube management tool allowing you to easily maintain complete minikube kubernetes installations, including backup, restore, experiment with using different versions of kubernetes (including RC).
-
-### Options Description
-
-| Option | Description |
-|--------|--------|
-|-h, --help|Displays all options and a short description of their functions |
-|-b, --backup|Compresses the minikube directory into a gzipped tar file named with this date format YYYYMMDD-HHMM-SS|
-|-d, --default-kube|Uses the minikube default kubernetes version, which may not always be latest stable|
-|-r, --restore [file]|Decompresses a minikube backup and restore environments|
-|-v, --version|Show the version of minikube-tool|
-|--run|Deletes the current minikube installation (if it exists) and reinstalls minikube using defaults unless otherwise modified|
 
 ### License
 
