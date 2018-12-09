@@ -5,7 +5,7 @@
 # Set USE_DEFAULT=1 to use MINIKUBE DEFAULT
 USE_DEFAULT=0
 DEFAULT_KUBERNETES="v1.10.0"
-STABLE_KUBERNETES="v1.11.0"
+STABLE_KUBERNETES="v1.12.0"
 DATE_STAMP=`date +%Y%m%d-%H%M-%S`
 MACHINE_NAME="minikube"
 MACHINE_STORAGE_PATH="$HOME/.minikube"
@@ -205,4 +205,3 @@ done
 printf "Here, I'll help you out...\n"
 $0 --help
 exit 0
-printf "Hello?"
