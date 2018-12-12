@@ -4,7 +4,7 @@
 # Set USE_DEFAULT=0 to use LATEST STABLE
 # Set USE_DEFAULT=1 to use MINIKUBE DEFAULT
 USE_DEFAULT=0
-DEFAULT_KUBERNETES="v1.10.0"
+DEFAULT_KUBERNETES="v1.11.0"
 STABLE_KUBERNETES="v1.12.0"
 DATE_STAMP=`date +%Y%m%d-%H%M-%S`
 MACHINE_NAME="minikube"
@@ -33,13 +33,6 @@ cleanmk_warn(){
 _error(){
 	printf "An error occured.\n"
 	exit 250
-}
-
-minikube_warn(){
-	printf "╒═════════════════════════════════════════════════════════════════╕\n"
-	printf "│ WARNING!  Your docker environment is currently set to MINIKUBE! │\n"
-	printf "│           Use --unset to unset the docker environment           │\n"
-	printf "╘═════════════════════════════════════════════════════════════════╛\n"
 }
 
 kubever_warn(){
@@ -96,7 +89,7 @@ restore_minikube(){
 
 version(){
 	printf "Minikube-Tool\n"
-	printf "Version 0.1.09\n"
+	printf "Version 0.1.1\n"
 	printf "https://github.com/gergme/minikube-tool\n"
 }
 
@@ -122,7 +115,7 @@ run_program(){
 	[[ ${NO_WIPE} -ne 1 ]] && destroy || \
 	kubever_warn
 	#[[ -z ${KUBE_VERSION} ]] && KUBE_VERSION=`jq ".KubernetesConfig.KubernetesVersion" ${MACHINE_STORAGE_PATH/profiles/${MACHINE_NAME}/config.json`
-	[[ -f ${MACHINE_STORAGE_PATH}/mkt.run ]] && $(${MACHINE_STORAGE_PATH}/mkt.run) || minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000
+	[[ -f ${MACHINE_STORAGE_PATH}/mkt.run ]] && $(${MACHINE_STORAGE_PATH}/mkt.run) || minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000 --disk-size 60g --cpus 4 --memory 8196
 	eval $(minikube docker-env)
 	docker run -d -p 5000:5000 --restart=always --name registry registry:2
 	printf "╒═════════════════════════════════════════════════════════════════╕\n"
