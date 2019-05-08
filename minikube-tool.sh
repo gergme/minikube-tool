@@ -50,6 +50,13 @@ kubever_warn(){
 fi
 }
 
+destroy_network(){
+	printf "╒═════════════════════════════════════════════════════════════════╕\n"
+        printf "│ NOTICE!  I really hope you know what you've just done!          │\n"
+        printf "╘═════════════════════════════════════════════════════════════════╛\n"
+	rm -rfv ~/.config/VirtualBox
+}
+
 backup_minikube(){
 	printf "Preparing to backup ${MACHINE_STORAGE_PATH}...\n"
 	[[ ! -d ${MACHINE_STORAGE_PATH}/ ]] && _error || \
@@ -142,16 +149,16 @@ while test $# -gt 0; do
 					echo "-n, --no-wipe			Start minikube without wiping minikube installation"
 					echo "-r, --restore [file]		Restore a minikube virtual machine"
 					echo "-R, --run			Run the script"
+					echo "-N, --network			Destroy VirtualBox networking"
 					echo "-v, --version			Show version"
 					exit 0
 					;;
 
-            -b|--backup)
+			-b|--backup)
 					backup_minikube
-                    RAN=1
-                    shift
-                    ;;
-
+					RAN=1
+					shift
+					;;
 			-d|--default-kube)
 					USE_DEFAULT=1
 					kubever_warn
@@ -181,7 +188,11 @@ while test $# -gt 0; do
 					RAN=1
 					shift
 					;;
-
+			-N|--network)
+					destroy_network
+					shift
+					exit 0
+					;;
 			*)
 					printf "Unknown option!\n"
 					RAN=1
