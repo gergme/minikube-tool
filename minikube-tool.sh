@@ -30,6 +30,11 @@ cleanmk_warn(){
 	done
 }
 
+function check_env() {
+        [ -z ${DOCKER_HOST} ] && KUBE_ENV="LOCAL" || KUBE_ENV="MINIKUBE"
+}
+
+
 _error(){
 	printf "An error occured.\n"
 	exit 250
@@ -119,17 +124,16 @@ destroy(){
 run_program(){
 	tput clear 
 	version	
+	check_env
 	[[ ${NO_WIPE} -ne 1 ]] && destroy || \
 	kubever_warn
 	#[[ -z ${KUBE_VERSION} ]] && KUBE_VERSION=`jq ".KubernetesConfig.KubernetesVersion" ${MACHINE_STORAGE_PATH/profiles/${MACHINE_NAME}/config.json`
 	[[ -f ${MACHINE_STORAGE_PATH}/mkt.run ]] && $(${MACHINE_STORAGE_PATH}/mkt.run) || minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000 --disk-size 60g --cpus 4 --memory 8196
 	eval $(minikube docker-env)
 	docker run -d -p 5000:5000 --restart=always --name registry registry:2
-	printf "╒═════════════════════════════════════════════════════════════════╕\n"
-	printf "│ NOTICE!  Your docker environment is currently set to LOCAL!     │\n"
-	printf "│           Use \"eval \$(minikube docker-env)\" for MINIKUBE        │\n"
-	printf "│           Use \"eval \$(minikube docker-env --unset)\" for LOCAL   │\n"
-	printf "╘═════════════════════════════════════════════════════════════════╛\n"
+	printf "NOTICE!  Your docker environment is currently set to ${KUBE_ENV}!\n"
+	printf "\tUse \"eval \$(minikube docker-env)\" for MINIKUBE\n"
+	printf "\tUse \"eval \$(minikube docker-env --unset)\" for LOCAL\n"
 	printf "minikube start --kubernetes-version ${KUBE_VERSION} --insecure-registry=localhost:5000" > ${MACHINE_STORAGE_PATH}/mkt.run
 	minikube status
 }
