@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 # This script uses latest STABLE as it's default
 # Set USE_DEFAULT=0 to use LATEST STABLE
